@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quicknote-v1';
+const CACHE_NAME = 'quicknote-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.json', '/icons/icon.svg'];
 
 // インストール時にアプリシェルをキャッシュ
