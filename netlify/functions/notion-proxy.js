@@ -42,6 +42,7 @@ exports.handler = async (event) => {
 
   // ── DBスキーマを取得してタイトルプロパティ名を特定 ──────────
   let titlePropName;
+  let datePropNames = [];
   try {
     const dbRes = await fetch(`${NOTION_BASE}/databases/${databaseId}`, {
       headers: notionHeaders,
@@ -64,6 +65,11 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: cors, body: json({ message: 'タイトルプロパティが見つかりません' }) };
     }
     titlePropName = titleEntry[0];
+
+    // date 型のプロパティ名をすべて収集（後でページ作成時に使う）
+    datePropNames = Object.entries(db.properties)
+      .filter(([, prop]) => prop.type === 'date')
+      .map(([name]) => name);
   } catch (err) {
     console.error('DB fetch error:', err);
     return { statusCode: 500, headers: cors, body: json({ message: 'データベースへの接続に失敗しました' }) };
@@ -79,12 +85,20 @@ exports.handler = async (event) => {
     return !(i === 0 && arr[0] === '');
   });
 
+  // 今日の日付を JST で取得（Netlify の実行環境は UTC のため +9 時間補正）
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const dateProperties = Object.fromEntries(
+    datePropNames.map((name) => [name, { date: { start: today } }])
+  );
+
   const pagePayload = {
     parent: { database_id: databaseId },
     properties: {
       [titlePropName]: {
         title: [{ text: { content: title } }],
       },
+      ...dateProperties, // date型プロパティに今日の日付を自動セット
     },
   };
 
