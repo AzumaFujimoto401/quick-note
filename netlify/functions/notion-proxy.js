@@ -6,6 +6,27 @@
 const NOTION_VERSION = '2022-06-28';
 const NOTION_BASE = 'https://api.notion.com/v1';
 
+// ── ランダムアイコン用データ ────────────────────────────────
+const ICONS = [
+  'activity', 'archive', 'award', 'balloon', 'bell', 'book', 'bookmark',
+  'briefcase', 'bug', 'calendar', 'camera', 'chart-bar', 'clipboard',
+  'clock', 'code', 'coffee', 'compass', 'crown', 'diamond',
+  'edit', 'email', 'eye', 'fire', 'flag', 'folder',
+  'gear', 'gift', 'globe', 'heart', 'home', 'key',
+  'leaf', 'lock', 'map', 'medal', 'megaphone', 'music',
+  'pencil', 'pin', 'planet', 'puzzle', 'rocket', 'search',
+  'shield', 'smile', 'star', 'sun', 'target', 'thunder',
+  'ticket', 'timer', 'tool', 'trophy', 'tree', 'umbrella',
+  'video', 'wallet', 'wrench',
+];
+const COLORS = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'brown', 'gray'];
+
+function randomIcon() {
+  const name  = ICONS[Math.floor(Math.random() * ICONS.length)];
+  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+  return `https://www.notion.so/icons/${name}_${color}.svg`;
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -94,6 +115,7 @@ exports.handler = async (event) => {
 
   const pagePayload = {
     parent: { database_id: databaseId },
+    icon: { type: 'external', external: { url: randomIcon() } },
     properties: {
       [titlePropName]: {
         title: [{ text: { content: title } }],
