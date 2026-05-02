@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="QuickNote" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <title>QuickNote</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-light: #eef2ff;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #ffffff;
+      --bg-secondary: #f9fafb;
+      --success: #10b981;
+      --error: #ef4444;
+      --radius: 12px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh; /* dynamic viewport height for mobile */
+    }
+
+    /* ── トップバー ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: calc(var(--safe-top) + 12px) 16px 12px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .topbar-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .topbar-title svg { width: 24px; height: 24px; }
+
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: var(--bg-secondary);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-icon:hover, .btn-icon:active { background: var(--primary-light); color: var(--primary); }
+    .btn-icon svg { width: 20px; height: 20px; }
+
+    /* ── メインエリア ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #note-input {
+      flex: 1;
+      width: 100%;
+      border: none;
+      outline: none;
+      resize: none;
+      font-size: 17px;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      padding: 20px 20px 12px;
+      font-family: inherit;
+    }
+
+    #note-input::placeholder { color: #d1d5db; }
+
+    /* ── ボトムバー ── */
+    .bottombar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px calc(var(--safe-bottom) + 12px);
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .char-count {
+      font-size: 13px;
+      color: var(--text-muted);
+      min-width: 50px;
+    }
+
+    .char-count.warn { color: var(--error); }
+
+    .btn-send {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 24px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 100px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-send:hover { background: var(--primary-hover); }
+    .btn-send:active { transform: scale(0.96); }
+    .btn-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-send svg { width: 16px; height: 16px; }
+
+    /* ── トースト通知 ── */
+    .toast {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 80px);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--text);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--error); }
+
+    /* ── 設定モーダル ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+
+    .overlay.open { opacity: 1; pointer-events: auto; }
+
+    .sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg);
+      border-radius: 20px 20px 0 0;
+      padding: 0 20px calc(var(--safe-bottom) + 24px);
+      z-index: 201;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      max-height: 90dvh;
+      overflow-y: auto;
+    }
+
+    .sheet.open { transform: translateY(0); }
+
+    .sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 12px auto 20px;
+    }
+
+    .sheet-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      color: var(--text);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-family: monospace;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .form-input:focus { border-color: var(--primary); }
+    .form-input::placeholder { color: #d1d5db; font-family: -apple-system, sans-serif; }
+
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .btn-save {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+
+    .btn-save:hover { background: var(--primary-hover); }
+
+    .sheet-link {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    /* ── 設定未設定バナー ── */
+    .setup-banner {
+      margin: 16px;
+      padding: 14px 16px;
+      background: var(--primary-light);
+      border: 1.5px solid #c7d2fe;
+      border-radius: var(--radius);
+      font-size: 14px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .setup-banner svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .setup-banner.hidden { display: none; }
+
+    /* ── ローディングスピナー ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- トップバー -->
+  <header class="topbar">
+    <div class="topbar-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+      QuickNote
+    </div>
+    <button class="btn-icon" id="btn-settings" aria-label="設定">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- メインエリア -->
+  <main class="main">
+    <!-- 設定未完了バナー -->
+    <div class="setup-banner hidden" id="setup-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>NotionのAPIトークンとDB IDを設定してください</span>
+    </div>
+
+    <textarea
+      id="note-input"
+      placeholder="思い浮かんだことをここに…"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+    ></textarea>
+  </main>
+
+  <!-- ボトムバー -->
+  <footer class="bottombar">
+    <span class="char-count" id="char-count">0文字</span>
+    <button class="btn-send" id="btn-send" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+      Notionへ送信
+    </button>
+  </footer>
+
+  <!-- トースト -->
+  <div class="toast" id="toast"></div>
+
+  <!-- 設定シート -->
+  <div class="overlay" id="overlay"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="設定">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title">Notion 接続設定</h2>
+
+    <div class="form-group">
+      <label class="form-label" for="input-token">API トークン</label>
+      <input class="form-input" id="input-token" type="password" placeholder="ntn_xxxxxxxxxxxx" autocomplete="off" />
+      <p class="form-hint">notion.so/my-integrations で取得できます</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="input-db">データベース ID</label>
+      <input class="form-input" id="input-db" type="text" placeholder="1e556b42e1d7437cbf623c40cfab2931" autocomplete="off" />
+      <p class="form-hint">NotionのDBページURLに含まれる32文字の文字列です（?v=以降は不要）</p>
+    </div>
+
+    <button class="btn-save" id="btn-save">保存する</button>
+    <a class="sheet-link" href="https://www.notion.so/my-integrations" target="_blank" rel="noopener">
+      インテグレーション管理ページを開く →
+    </a>
+  </div>
+
+  <script>
+    // ── 状態管理 ──────────────────────────────────────────────
+    const STORAGE_KEY = 'quicknote-settings';
+
+    function loadSettings() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveSettings(settings) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    }
+
+    function isConfigured(s) {
+      return !!(s.token && s.databaseId);
+    }
+
+    // ── DOM 参照 ───────────────────────────────────────────────
+    const noteInput    = document.getElementById('note-input');
+    const btnSend      = document.getElementById('btn-send');
+    const btnSettings  = document.getElementById('btn-settings');
+    const charCount    = document.getElementById('char-count');
+    const toast        = document.getElementById('toast');
+    const overlay      = document.getElementById('overlay');
+    const sheet        = document.getElementById('sheet');
+    const inputToken   = document.getElementById('input-token');
+    const inputDb      = document.getElementById('input-db');
+    const btnSave      = document.getElementById('btn-save');
+    const setupBanner  = document.getElementById('setup-banner');
+
+    // ── 文字数カウント ─────────────────────────────────────────
+    noteInput.addEventListener('input', () => {
+      const len = noteInput.value.length;
+      charCount.textContent = `${len}文字`;
+      charCount.classList.toggle('warn', len > 1800);
+      btnSend.disabled = len === 0 || !isConfigured(loadSettings());
+    });
+
+    // ── 設定シート ────────────────────────────────────────────
+    function openSheet() {
+      const s = loadSettings();
+      if (s.token) inputToken.value = s.token;
+      if (s.databaseId) inputDb.value = s.databaseId;
+      overlay.classList.add('open');
+      sheet.classList.add('open');
+      setTimeout(() => inputToken.focus(), 300);
+    }
+
+    function closeSheet() {
+      overlay.classList.remove('open');
+      sheet.classList.remove('open');
+    }
+
+    btnSettings.addEventListener('click', openSheet);
+    overlay.addEventListener('click', closeSheet);
+    setupBanner.addEventListener('click', openSheet);
+
+    // スワイプで閉じる
+    let touchStartY = 0;
+    sheet.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+    sheet.addEventListener('touchend', (e) => {
+      if (e.changedTouches[0].clientY - touchStartY > 60) closeSheet();
+    }, { passive: true });
+
+    // 設定保存
+    btnSave.addEventListener('click', () => {
+      const token = inputToken.value.trim();
+      const databaseId = inputDb.value.trim().split('?')[0]; // ?v= 以降を除去
+
+      if (!token || !databaseId) {
+        showToast('トークンとDB IDを入力してください', 'error');
+        return;
+      }
+      if (!token.startsWith('ntn_') && !token.startsWith('secret_')) {
+        showToast('トークンの形式が正しくありません', 'error');
+        return;
+      }
+      if (databaseId.replace(/-/g, '').length !== 32) {
+        showToast('DB IDの形式が正しくありません', 'error');
+        return;
+      }
+
+      saveSettings({ token, databaseId });
+      closeSheet();
+      updateUI();
+      showToast('設定を保存しました ✓', 'success');
+    });
+
+    // ── 送信処理 ──────────────────────────────────────────────
+    btnSend.addEventListener('click', sendNote);
+    noteInput.addEventListener('keydown', (e) => {
+      // Cmd+Enter（PCから使う場合）で送信
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendNote();
+    });
+
+    async function sendNote() {
+      const content = noteInput.value.trim();
+      if (!content) return;
+
+      const settings = loadSettings();
+      if (!isConfigured(settings)) {
+        openSheet();
+        return;
+      }
+
+      // ボタンをローディング状態に
+      btnSend.disabled = true;
+      btnSend.innerHTML = '<div class="spinner"></div>送信中…';
+
+      try {
+        const res = await fetch('/.netlify/functions/notion-proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: settings.token,
+            databaseId: settings.databaseId,
+            content,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || '送信に失敗しました');
+        }
+
+        // 成功 → テキストクリア
+        noteInput.value = '';
+        charCount.textContent = '0文字';
+        showToast('Notionに送信しました ✓', 'success');
+
+      } catch (err) {
+        showToast(err.message || '送信に失敗しました', 'error');
+      } finally {
+        btnSend.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+          Notionへ送信`;
+        btnSend.disabled = noteInput.value.length === 0;
+      }
+    }
+
+    // ── トースト通知 ──────────────────────────────────────────
+    let toastTimer;
+    function showToast(message, type = '') {
+      clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.className = `toast ${type}`;
+      // 強制リフロー
+      toast.offsetHeight;
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    // ── UI 初期化 ─────────────────────────────────────────────
+    function updateUI() {
+      const configured = isConfigured(loadSettings());
+      setupBanner.classList.toggle('hidden', configured);
+      btnSend.disabled = noteInput.value.length === 0 || !configured;
+    }
+
+    // ── Service Worker 登録 ───────────────────────────────────
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    }
+
+    // 初期化
+    updateUI();
+    noteInput.focus();
+  </script>
+</body>
+</html>
