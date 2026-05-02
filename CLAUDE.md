@@ -47,4 +47,6 @@ git push  # mainへのpushでNetlifyが自動デプロイ（約12秒）
 
 ### Service Workerのキャッシュ更新
 
-`sw.js` を変更した場合は `CACHE_NAME`（例: `quicknote-v1` → `quicknote-v2`）をインクリメントすること。古いキャッシュはactivateイベントで自動削除される。
+**`public/` 配下のファイルを変更したときは必ず `sw.js` の `CACHE_NAME` をインクリメントすること**（例: `quicknote-v2` → `quicknote-v3`）。
+変更しないと既存ユーザーに古いキャッシュが配信され続ける。古いキャッシュはactivateイベントで自動削除される。
+現在の値: `quicknote-v2`
